@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String    @default("default")
+  title     String    @default("New Chat")
+  pinned    Boolean   @default(false)
+  archived  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, pinned, updatedAt(sort: Desc)])
+  @@index([userId, archived])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+}
+
+model Memory {
+  id         String         @id @default(cuid())
+  userId     String         @default("default")
+  content    String         @db.Text
+  category   MemoryCategory @default(custom)
+  importance Int            @default(5)
+  pinned     Boolean        @default(false)
+  keywords   String[]       @default([])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([userId, category])
+  @@index([userId, pinned])
+  @@index([userId, importance(sort: Desc)])
+}
+
+enum MemoryCategory {
+  preference
+  coding
+  project
+  personal
+  custom
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  userId      String        @default("default")
+  name        String
+  description String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  files       ProjectFile[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model ProjectFile {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  path      String
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, path])
+  @@index([projectId])
+}
+
+model Settings {
+  id         String   @id @default(cuid())
+  userId     String   @unique @default("default")
+  ai         Json     @default("{}")
+  memory     Json     @default("{}")
+  project    Json     @default("{}")
+  appearance Json     @default("{}")
+  updatedAt  DateTime @updatedAt
+}
